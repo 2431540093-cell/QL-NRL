@@ -1,0 +1,59 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  STUDENT
+}
+
+enum EventStatus {
+  UPCOMING
+  ONGOING
+  ENDED
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  role      Role
+  createdAt DateTime @default(now())
+
+  registrations Registration[]
+}
+
+model TrainingDay {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  location    String?
+  startTime   DateTime
+  endTime     DateTime
+  status      EventStatus @default(UPCOMING)
+  createdAt   DateTime @default(now())
+
+  registrations Registration[]
+}
+
+model Registration {
+  id        Int      @id @default(autoincrement())
+
+  userId    Int
+  eventId   Int
+
+  qrToken   String   @unique
+  checkedIn Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+
+  user      User        @relation(fields: [userId], references: [id])
+  event     TrainingDay @relation(fields: [eventId], references: [id])
+
+  @@unique([userId, eventId]) // ❗ chống đăng ký trùng
+}
