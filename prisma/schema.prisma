@@ -8,52 +8,109 @@ datasource db {
 }
 
 enum Role {
-  ADMIN
   STUDENT
+  EVENT_MANAGER
+  ADMIN
+  SUPER_ADMIN
 }
 
 enum EventStatus {
+  DRAFT
   UPCOMING
-  ONGOING
-  ENDED
+  OPEN_REGISTRATION
+  CLOSED
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Semester {
+  id        Int      @id @default(autoincrement())
+  name      String   // e.g., "Fall 2024"
+  startDate DateTime
+  endDate   DateTime
+  createdAt DateTime @default(now())
+
+  events Event[]
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  role      Role
-  createdAt DateTime @default(now())
+  id             Int        @id @default(autoincrement())
+  mssv           String?    @unique
+  name           String
+  faculty        String?
+  class          String?
+  email          String     @unique
+  password       String     // Hashed password
+  role           Role
+  status         UserStatus @default(ACTIVE)
+  trainingPoints Int        @default(0)
+  createdAt      DateTime   @default(now())
 
   registrations Registration[]
+  checkIns       CheckIn[]
+  importLogs     ImportLog[]
 }
 
-model TrainingDay {
-  id          Int      @id @default(autoincrement())
-  title       String
-  description String?
-  location    String?
-  startTime   DateTime
-  endTime     DateTime
-  status      EventStatus @default(UPCOMING)
-  createdAt   DateTime @default(now())
+model Event {
+  id                Int          @id @default(autoincrement())
+  semesterId        Int
+  title             String
+  description       String?
+  imageUrl          String?
+  location          String
+  startTime         DateTime
+  endTime           DateTime?
+  registrationStart DateTime
+  registrationEnd   DateTime
+  daysPerSession    Int?
+  maxParticipants   Int?
+  status            EventStatus  @default(DRAFT)
 
+  semester      Semester      @relation(fields: [semesterId], references: [id])
   registrations Registration[]
+  checkIns       CheckIn[]
+  importLogs     ImportLog[]
 }
 
 model Registration {
   id        Int      @id @default(autoincrement())
-
   userId    Int
   eventId   Int
-
   qrToken   String   @unique
   checkedIn Boolean  @default(false)
-
   createdAt DateTime @default(now())
 
-  user      User        @relation(fields: [userId], references: [id])
-  event     TrainingDay @relation(fields: [eventId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+  event Event @relation(fields: [eventId], references: [id])
 
-  @@unique([userId, eventId]) // ❗ chống đăng ký trùng
+  checkIns CheckIn[]
+
+  @@unique([userId, eventId])
+}
+
+model CheckIn {
+  id          Int      @id @default(autoincrement())
+  registrationId Int
+  eventId     Int
+  checkInTime DateTime @default(now())
+  checkedInBy Int // User ID of the staff who checked in
+
+  registration Registration @relation(fields: [registrationId], references: [id])
+  event        Event        @relation(fields: [eventId], references: [id])
+  staff        User         @relation(fields: [checkedInBy], references: [id])
+}
+
+model ImportLog {
+  id        Int      @id @default(autoincrement())
+  eventId   Int
+  importedBy Int
+  fileName  String
+  importedAt DateTime @default(now())
+  count     Int
+
+  event Event @relation(fields: [eventId], references: [id])
+  user  User  @relation(fields: [importedBy], references: [id])
 }
